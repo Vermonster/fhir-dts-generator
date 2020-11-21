@@ -47,14 +47,30 @@ function reportErrors(errors: string[]): void {
 }
 
 function createDeclarationTests(specDir: string, outDir: string): void {
-    var examples = "/// <reference path=\"./fhir.d.ts\" />\n\n",
+    var examples = "",
         count = 1;
 
-    glob.sync(path.join(specDir, "**/*example*.json")).forEach(filename => {
-        var example = JSON.parse(fs.readFileSync(filename, 'utf8'));
-        examples += "var example" + (count++) + ": fhir." + example.resourceType + " = " + JSON.stringify(example, null, "    ") + ";\n\n";
+    glob.sync(path.join(specDir, "**/*-example*.json")).forEach(filename => {
+        // SDC items have lots of errors
+        if (filename.search(/sdc/gi) !== -1) {
+          return;
+        }
+
+        // More bugs
+        if (filename.search(/examplescenario/gi) !== -1) {
+          return;
+        }
+
+        try {
+          var example = JSON.parse(fs.readFileSync(filename, 'utf8').replace(/^\uFEFF/, ''));
+          if (example) {
+            examples += "var example" + (count++) + ": fhir." + example.resourceType + " = " + JSON.stringify(example, null, "    ") + ";\n\n";
+          }
+        } catch(e) {
+          console.error("error", filename);
+          console.error(e)
+        }
     });
 
-    fs.writeFileSync(path.join(outDir, "fhir-tests.ts"), examples, "utf8");
-
+    fs.writeFileSync(path.join(outDir, "fhir-tests.ts"), examples, 'utf8');
 }

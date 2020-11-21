@@ -17,11 +17,12 @@ function emitFiles(outDir: string, types: Type[]): EmitResults {
     var writer = new Writer(path.join(outDir, "fhir.d.ts"));
 
     // Write the header
-    writer.write("// Type definitions for FHIR Release 3 (STU)");
+    writer.write("// Type definitions for FHIR Release 4.0");
     writer.writeLine();
     writer.write("// Project: http://hl7.org/fhir/index.html");
     writer.writeLine();
     writer.write("// Definitions by: Artifact Health <https://www.artifacthealth.com>");
+    writer.write("                   Vermonster <https://github.com/Vermonster>");
     writer.writeLine();
     writer.write("// Definitions: https://github.com/borisyankov/DefinitelyTyped");
     writer.writeLine();
@@ -276,7 +277,7 @@ function emitFiles(outDir: string, types: Type[]): EmitResults {
         }
 
         if(type.kind == TypeKind.TypeReference) {
-
+            console.dir(type);
             type = getTypeByName(type.name);
             if(type.kind == TypeKind.Primitive) {
 

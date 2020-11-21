@@ -643,6 +643,10 @@ export function processFiles(files: SpecificationFileMap): ProcessFilesResults {
                 return "string";
             case "uri":
                 return "string";
+            case "url":
+                return "string";
+            case "canonical":
+                return "string";
             case "unsignedInt":
                 return "number";
             case "positiveInt":
@@ -650,6 +654,8 @@ export function processFiles(files: SpecificationFileMap): ProcessFilesResults {
             case "code":
                 return "string";
             case "id":
+                return "string";
+            case "uuid":
                 return "string";
             case "oid":
                 return "string";
@@ -925,11 +931,16 @@ export function processFiles(files: SpecificationFileMap): ProcessFilesResults {
             }
 
             if(elementType.kind != TypeKind.InterfaceType) {
-                addError("Expected content reference to resolve to an interface type.");
-            }
+              console.dir(TypeKind.InterfaceType);
+              console.dir(elementType);
+              // addError("Expected content reference " + elementType.kind + "to resolve to an interface type.");
+              // create a reference to the interface type
+              elementType = createPrimitiveType(elementType.name, "string");
+            } else {
 
-            // create a reference to the interface type
-            elementType = createTypeReference((<InterfaceType>elementType).name);
+              // create a reference to the interface type
+              elementType = createTypeReference((<InterfaceType>elementType).name);
+            }
         }
         else {
             var typeReferences = getTypeReferences(element.type);
@@ -1047,6 +1058,9 @@ export function processFiles(files: SpecificationFileMap): ProcessFilesResults {
             else if (typeName == 'xhtml') {
                 typeName = "string";
             }
+            else if (typeName == 'http://hl7.org/fhirpath/System.String') {
+                typeName = "string";
+            }
             else if (!getFileForType(typeName)) {
                 // if type name is not valid then skip processing.
                 return null;
@@ -1054,7 +1068,7 @@ export function processFiles(files: SpecificationFileMap): ProcessFilesResults {
 
             var typeReference = createTypeReference(typeName);
 
-            if (typeElement.profile && typeElement.profile.length) {
+            if (typeElement.profile && typeElement.profile.length && typeof typeElement.profile === "string") {
                 var resourceName = getResourceNameFromProfile(typeElement.profile);
                 if(resourceName) {
                     if(resourceName != "any") {
@@ -1081,8 +1095,8 @@ export function processFiles(files: SpecificationFileMap): ProcessFilesResults {
 
         var base = "http://hl7.org/fhir/StructureDefinition/";
 
-        if(profile.indexOf(base) == -1) {
-            addError("Unrecognized profile uri: '" + profile + "'.");
+        if(profile.indexOf(base) === -1) {
+            addError(`Unrecognized profile uri: '${profile}'`);
             return null;
         }
 
@@ -1090,7 +1104,6 @@ export function processFiles(files: SpecificationFileMap): ProcessFilesResults {
     }
 
     function getFileForType(name: string): SpecificationFile {
-
         var elementTypeFile = files[name];
         if (!elementTypeFile) {
             addError("Unknown type '%s'.", name);

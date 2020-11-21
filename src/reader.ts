@@ -48,9 +48,9 @@ export function readSpecification(basePath: string): CreateFileMapResults {
     }
 
     function readFile(filename: string): string {
-
         try {
-            return JSON.parse(fs.readFileSync(filename, 'utf8'));
+          const json = fs.readFileSync(filename, 'utf8');
+          return JSON.parse(json.replace(/^\uFEFF/, ''));
         }
         catch(err) {
             addError(err.message);
