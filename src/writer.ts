@@ -1,5 +1,3 @@
-/// <reference path="../typings/node.d.ts" />
-
 import fs = require("fs");
 
 class Writer {

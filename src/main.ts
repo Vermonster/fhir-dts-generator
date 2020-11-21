@@ -1,6 +1,4 @@
 /// <reference path="./types.d.ts" />
-/// <reference path="../typings/mkdirp.d.ts" />
-/// <reference path="../typings/glob.d.ts" />
 
 import fs = require("fs");
 import path = require("path");

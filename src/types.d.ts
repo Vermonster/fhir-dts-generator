@@ -1,5 +1,3 @@
-/// <reference path="../typings/fhir.d.ts" />
-
 interface Callback {
     (err?: Error): void;
 }

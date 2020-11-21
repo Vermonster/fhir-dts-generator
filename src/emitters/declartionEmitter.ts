@@ -1,4 +1,3 @@
-/// <reference path="../../typings/node.d.ts" />
 /// <reference path="./../types.d.ts" />
 
 import util = require("util");
@@ -277,7 +276,6 @@ function emitFiles(outDir: string, types: Type[]): EmitResults {
         }
 
         if(type.kind == TypeKind.TypeReference) {
-            console.dir(type);
             type = getTypeByName(type.name);
             if(type.kind == TypeKind.Primitive) {
 

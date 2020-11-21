@@ -1,7 +1,3 @@
-/// <reference path="../typings/node.d.ts" />
-/// <reference path="../typings/async.d.ts" />
-/// <reference path="../typings/glob.d.ts" />
-/// <reference path="../typings/change-case.d.ts" />
 /// <reference path="./types.d.ts" />
 
 import fs = require("fs");
@@ -408,7 +404,7 @@ export function processFiles(files: SpecificationFileMap): ProcessFilesResults {
     function getNameFromSystemUrl(url: string): string {
 
         var parts = url.split('/');
-        name = parts[parts.length-1];
+        const name = parts[parts.length-1];
         return formatName(name);
     }
 
@@ -931,8 +927,6 @@ export function processFiles(files: SpecificationFileMap): ProcessFilesResults {
             }
 
             if(elementType.kind != TypeKind.InterfaceType) {
-              console.dir(TypeKind.InterfaceType);
-              console.dir(elementType);
               // addError("Expected content reference " + elementType.kind + "to resolve to an interface type.");
               // create a reference to the interface type
               elementType = createPrimitiveType(elementType.name, "string");
