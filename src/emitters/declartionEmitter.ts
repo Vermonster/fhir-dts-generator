@@ -20,10 +20,11 @@ function emitFiles(outDir: string, types: Type[]): EmitResults {
     writer.writeLine();
     writer.write("// Project: http://hl7.org/fhir/index.html");
     writer.writeLine();
-    writer.write("// Definitions by: Artifact Health <https://www.artifacthealth.com>");
-    writer.write("                   Vermonster <https://github.com/Vermonster>");
+    writer.write("// Definitions by: Artifact Health <https://github.com/meirgottlieb>");
     writer.writeLine();
-    writer.write("// Definitions: https://github.com/borisyankov/DefinitelyTyped");
+    writer.write("//                 Brian Kaney <https://github.com/bkaney>");
+    writer.writeLine();
+    writer.write("// Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped");
     writer.writeLine();
     writer.writeLine();
     writer.write("declare module fhir {");
