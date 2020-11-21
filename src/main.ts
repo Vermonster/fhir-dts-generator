@@ -49,13 +49,12 @@ function createDeclarationTests(specDir: string, outDir: string): void {
         count = 1;
 
     glob.sync(path.join(specDir, "**/*-example*.json")).forEach(filename => {
-        // SDC items have lots of errors
-        if (filename.search(/sdc/gi) !== -1) {
-          return;
-        }
-
-        // More bugs
-        if (filename.search(/examplescenario/gi) !== -1) {
+        // TODO: Make a file with regex of examples to ignore...
+        // The SDC examples have lots of errors!
+        if (
+          filename.search(/sdc/gi) !== -1 ||
+          filename.search(/examplescenario/gi) !== -1
+        ) {
           return;
         }
 
