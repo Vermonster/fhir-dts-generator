@@ -1,0 +1,3 @@
+[submodule "fhir-codegen"]
+	path = fhir-codegen
+	url = git@github.com:microsoft/fhir-codegen.git
