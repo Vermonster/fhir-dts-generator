@@ -88,13 +88,15 @@ export const buildExamples = (specDir: string, outputDir: string, cb: Function) 
     ] as string[]
     files?.forEach((file, i) => {
       if (
-        file.endsWith('json') &&
+        file.endsWith('.json') &&
         file.includes('example') &&
+        ! file.includes('diff') &&
         doNotSkip(file, specDir)
         ) {
-        const buf = fs.readFileSync(`${specDir}/${file}`)
-        const content = buf.toString()
         try {
+          const buf = fs.readFileSync(`${specDir}/${file}`)
+          const content = buf.toString()
+
           const resource = JSON.parse(content)
           const { resourceType } = resource
           delete resource.text
@@ -104,7 +106,7 @@ export const buildExamples = (specDir: string, outputDir: string, cb: Function) 
           testFile.push(`// ${file}`)
           testFile.push(`const test${i}: fhir.${resourceType} = ${JSON.stringify(resourceWoComments)};`)
         } catch(e) {
-          console.error(`error with ${file}`, e)
+          console.error(`error with ${specDir}/${file}`, e)
         }
       }
     })
@@ -140,14 +142,24 @@ export const copyTs = (version: string, cb: Function) => {
   execute(`echo '${header}' | cat - ${src} > ${dest} && sed -i 's/[[:space:]]*$//' ${dest}`, cb)
 }
 
-export const createR2 = (cb: Function) => {
+export const createVersion = (version: string, url: string, cb: Function) => {
   const specDir = `${__dirname}/spec`
-  const testDir = `${__dirname}/types/r2`
-  download('http://hl7.org/fhir/DSTU2/fhir-spec.zip', `${specDir}/r2.zip`, () => {
-    buildExamples(`${specDir}/r2/site`, testDir, () => {
-      copyTs('r2', cb)
+  const testDir = `${__dirname}/types/${version}`
+  download(url, `${specDir}/${version}.zip`, () => {
+    buildExamples(`${specDir}/${version}/site`, testDir, () => {
+      copyTs(version, cb)
     })
   })
+}
+
+export const createR2 = (cb: Function) => {
+  createVersion('r2', 'https://hl7.org/fhir/DSTU2/fhir-spec.zip', cb)
+}
+export const createR3 = (cb: Function) => {
+  createVersion('r3', 'https://hl7.org/fhir/STU-3/fhir-spec.zip', cb)
+}
+export const createR4 = (cb: Function) => {
+  createVersion('r4', 'https://hl7.org/fhir/R4/fhir-spec.zip', cb)
 }
 
 export const clean = () => del([ 'build', 'examples' ])
@@ -162,4 +174,4 @@ export const mkdir = (cb: Function) => {
 
 // const build = gulp.series(clean, mkdir, parallel(download_2, download_3, download_4))
 // export default gulp.series(clean, mkdir, createR2Examples)
-export default gulp.series(createR2)
+export default gulp.parallel(createR2, createR2, createR4)
