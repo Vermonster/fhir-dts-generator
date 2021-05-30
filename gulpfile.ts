@@ -50,7 +50,6 @@ const execute = (command: string, cb: Function) => {
   })
 }
 
-
 const unzip = (out: string, cb: Function) => {
   const outDir = out.replace(/(.*)\.zip$/, '$1')
   console.log(`* Extracting ${out} to ${outDir}...`)
@@ -84,7 +83,7 @@ export const buildExamples = (specDir: string, outputDir: string, cb: Function) 
       throw(err)
     }
     const testFile = [
-      "import * as fhir from './index';",
+      "// FHIR Tests"
     ] as string[]
     files?.forEach((file, i) => {
       if (
@@ -125,7 +124,10 @@ export const copyTs = (version: string, cb: Function) => {
   const src = `${__dirname}/fhir-codegen/generated/TypeScript_${version.toUpperCase()}.ts`
   const dest = `${__dirname}/types/${version}/index.d.ts`
 
-  const header = `// Type definitions for FHIR ${version.slice(1)}.0
+  // What we call R2 is DSTU2, which is FHIR version 1.0.2... yea, so this -
+  const fhirVersion = (version.slice(1) === '2') ? '1.0' : `${version.slice(1)}.0`
+
+  const header = `// Type definitions for non-npm package FHIR ${fhirVersion}
 // Project: http://hl7.org/fhir/index.html
 // Definitions by: Artifact Health <https://github.com/meirgottlieb>
 //                 Jan Huenges <https://github.com/jhuenges>
@@ -136,10 +138,17 @@ export const copyTs = (version: string, cb: Function) => {
 // with https://github.com/vermonster/fhir-dt-generator.
 //
 
+declare module fhir {
+  export {};
 `
 
   console.log(`* Extracting ${src} to ${dest}, adding header, and removing trailing whitespaces...`)
-  execute(`echo '${header}' | cat - ${src} > ${dest} && sed -i 's/[[:space:]]*$//' ${dest}`, cb)
+  execute(`echo '${header}' | cat - ${src} > ${dest} && sed -i 's/[[:space:]]*$//' ${dest} && echo '}' >> ${dest}`, cb)
+}
+
+const copyTemplates = (dest: string, cb: Function) => {
+  console.log(`* Copying ts JSON templates...`)
+  execute(`cp ${__dirname}/templates/*.json ${dest}`, cb) 
 }
 
 export const createVersion = (version: string, url: string, cb: Function) => {
@@ -147,7 +156,9 @@ export const createVersion = (version: string, url: string, cb: Function) => {
   const testDir = `${__dirname}/types/${version}`
   download(url, `${specDir}/${version}.zip`, () => {
     buildExamples(`${specDir}/${version}/site`, testDir, () => {
-      copyTs(version, cb)
+      copyTs(version, () => {
+        copyTemplates(testDir, cb)
+      })
     })
   })
 }
@@ -162,16 +173,21 @@ export const createR4 = (cb: Function) => {
   createVersion('r4', 'https://hl7.org/fhir/R4/fhir-spec.zip', cb)
 }
 
-export const clean = () => del([ 'build', 'examples' ])
 export const mkdir = (cb: Function) => {
-  fs.mkdirSync('examples')
-  fs.mkdirSync('build/r2', {recursive: true})
-  fs.mkdirSync('build/r3', {recursive: true})
-  fs.mkdirSync('build/r4', {recursive: true})
-  fs.mkdirSync('build/r5', {recursive: true})
+  fs.mkdirSync('spec')
+  fs.mkdirSync('types/r2', {recursive: true})
+  fs.mkdirSync('types/r3', {recursive: true})
+  fs.mkdirSync('types/r4', {recursive: true})
   cb()
+}
+
+export const test = (cb: Function) => {
+  execute('npx dtslint types/r2', cb)
+  execute('npx dtslint types/r3', cb)
+  execute('npx dtslint types/r4', cb)
 }
 
 // const build = gulp.series(clean, mkdir, parallel(download_2, download_3, download_4))
 // export default gulp.series(clean, mkdir, createR2Examples)
-export default gulp.parallel(createR2, createR2, createR4)
+export default gulp.series(createR2, createR3, createR4)
+// export default gulp.parallel(test)
