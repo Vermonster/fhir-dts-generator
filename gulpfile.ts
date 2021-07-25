@@ -1,4 +1,4 @@
-import gulp, { parallel } from  'gulp'
+import gulp from  'gulp'
 import del from 'del'
 import fs from 'fs'
 import wget from 'wget-improved'
@@ -63,28 +63,22 @@ const doNotSkip = (file: string, specDir: string): boolean => {
 
 const download = (url: string, dest: string, cb: Function) => {
   console.log(`* Downloading ${url} to ${dest}...`)
-  /*
-  wget.download(url, output)
+  wget.download(url, dest)
     .on('error', (err) => console.log(err))
     .on('end', (out) => {
-      unzip(output)
-      cb()
+      console.log(`* ${out}`)
+      unzip(dest, cb)
     })
-  */
-  // unzip(dest, cb)
-  cb()
 }
 
-export const buildExamples = (specDir: string, outputDir: string, cb: Function) => {
+const buildExamples = (specDir: string, version: string, cb: Function) => {
   console.log(`* Reading from ${specDir}...`)
   fs.readdir(specDir, (err, files) => {
     if (err) {
       console.error(err)
       throw(err)
     }
-    const testFile = [
-      "// FHIR Tests"
-    ] as string[]
+    const testFile = [] as string[]
     files?.forEach((file, i) => {
       if (
         file.endsWith('.json') &&
@@ -103,7 +97,7 @@ export const buildExamples = (specDir: string, outputDir: string, cb: Function) 
 
           testFile.push('')
           testFile.push(`// ${file}`)
-          testFile.push(`const test${i}: fhir.${resourceType} = ${JSON.stringify(resourceWoComments)};`)
+          testFile.push(`const ${version}Test${i}: fhi${version}.${resourceType} = ${JSON.stringify(resourceWoComments)};`)
         } catch(e) {
           console.error(`error with ${specDir}/${file}`, e)
         }
@@ -112,82 +106,110 @@ export const buildExamples = (specDir: string, outputDir: string, cb: Function) 
 
     testFile.push('') // tslint wants an extra line
 
-    console.log(`* Writing to ${outputDir}/fhir-test.ts...`)
-    fs.writeFile(`${outputDir}/fhir-tests.ts`, testFile.join("\n"), (err) => {
+    const testFilename = `${__dirname}/types/fhir/test/${version}-tests.ts`
+    console.log(`* Writing to ${testFilename}...`)
+    fs.writeFile(testFilename, testFile.join("\n"), (err) => {
       if (err) throw err
       cb()
     })
   })
 }
 
-export const copyTs = (version: string, cb: Function) => {
+const copyTs = (version: string, cb: Function) => {
   const src = `${__dirname}/fhir-codegen/generated/TypeScript_${version.toUpperCase()}.ts`
-  const dest = `${__dirname}/types/${version}/index.d.ts`
+  const dest = `${__dirname}/types/fhir/${version}.d.ts`
 
-  // What we call R2 is DSTU2, which is FHIR version 1.0.2... yea, so this -
-  const fhirVersion = (version.slice(1) === '2') ? '1.0' : `${version.slice(1)}.0`
+  const header = `export as namespace fhi${version};`
 
-  const header = `// Type definitions for non-npm package FHIR ${fhirVersion}
+  console.log(`* Extracting ${src} to ${dest}, adding header, and removing trailing whitespaces...`)
+  execute(`echo '${header}' | cat - ${src} > ${dest} && sed -i 's/[[:space:]]*$//' ${dest}`, cb)
+}
+
+const copyTemplates = (dest: string, cb: Function) => {
+  console.log(`* Copying ts JSON templates...`)
+  execute(`cp ${__dirname}/templates/*.json ${dest}`, cb)
+}
+
+export const createIndex = (cb: Function) => {
+  const header = `// Type definitions for non-npm package FHIR
 // Project: http://hl7.org/fhir/index.html
 // Definitions by: Artifact Health <https://github.com/meirgottlieb>
 //                 Jan Huenges <https://github.com/jhuenges>
 //                 Brian Kaney <https://github.com/bkaney>
 // Definitions: https://github.com/DefinitelyTyped/DefinitelyTypes
-//
+// Minimum TypeScript Version: 3.7
+
 // Generated from https://github.com/microsoft/fhir-codegen, packaged
 // with https://github.com/vermonster/fhir-dt-generator.
-//
 
-declare module fhir {
-  export {};
+/// <reference path="r2.d.ts" />
+/// <reference path="r3.d.ts" />
+/// <reference path="r4.d.ts" />
 `
 
-  console.log(`* Extracting ${src} to ${dest}, adding header, and removing trailing whitespaces...`)
-  execute(`echo '${header}' | cat - ${src} > ${dest} && sed -i 's/[[:space:]]*$//' ${dest} && echo '}' >> ${dest}`, cb)
+  execute(`echo '${header}' > types/fhir/index.d.ts`, () => {
+    copyTemplates(`${__dirname}/types/fhir`, cb)
+  })
 }
 
-const copyTemplates = (dest: string, cb: Function) => {
-  console.log(`* Copying ts JSON templates...`)
-  execute(`cp ${__dirname}/templates/*.json ${dest}`, cb) 
-}
-
-export const createVersion = (version: string, url: string, cb: Function) => {
+export const createVersion = (version: string, cb: Function) => {
   const specDir = `${__dirname}/spec`
-  const testDir = `${__dirname}/types/${version}`
-  download(url, `${specDir}/${version}.zip`, () => {
-    buildExamples(`${specDir}/${version}/site`, testDir, () => {
-      copyTs(version, () => {
-        copyTemplates(testDir, cb)
-      })
-    })
+  buildExamples(`${specDir}/${version}/site`, version, () => {
+    copyTs(version, cb)
   })
 }
 
 export const createR2 = (cb: Function) => {
-  createVersion('r2', 'https://hl7.org/fhir/DSTU2/fhir-spec.zip', cb)
+  createVersion('r2', cb)
 }
 export const createR3 = (cb: Function) => {
-  createVersion('r3', 'https://hl7.org/fhir/STU-3/fhir-spec.zip', cb)
+  createVersion('r3', cb)
 }
 export const createR4 = (cb: Function) => {
-  createVersion('r4', 'https://hl7.org/fhir/R4/fhir-spec.zip', cb)
+  createVersion('r4', cb)
+}
+
+export const downloadR2 = (cb: Function) => {
+  const specDir = `${__dirname}/spec`
+  const url = 'https://hl7.org/fhir/DSTU2/fhir-spec.zip'
+  download(url, `${specDir}/r2.zip`, cb)
+}
+
+export const downloadR3 = (cb: Function) => {
+  const specDir = `${__dirname}/spec`
+  const url = 'https://hl7.org/fhir/STU3/fhir-spec.zip'
+  download(url, `${specDir}/r3.zip`, cb)
+}
+
+export const downloadR4 = (cb: Function) => {
+  const specDir = `${__dirname}/spec`
+  const url = 'https://hl7.org/fhir/R4/fhir-spec.zip'
+  download(url, `${specDir}/r4.zip`, cb)
 }
 
 export const mkdir = (cb: Function) => {
-  fs.mkdirSync('spec')
-  fs.mkdirSync('types/r2', {recursive: true})
-  fs.mkdirSync('types/r3', {recursive: true})
-  fs.mkdirSync('types/r4', {recursive: true})
+  if (!fs.existsSync('spec')) {
+    fs.mkdirSync('spec')
+  }
+  if (!fs.existsSync('types/fhir/test')) {
+    fs.mkdirSync('types/fhir/test', {recursive: true})
+  }
   cb()
 }
 
 export const test = (cb: Function) => {
-  execute('npx dtslint types/r2', cb)
-  execute('npx dtslint types/r3', cb)
-  execute('npx dtslint types/r4', cb)
+  execute('npx dtslint ./types/fhir', cb)
 }
 
-// const build = gulp.series(clean, mkdir, parallel(download_2, download_3, download_4))
-// export default gulp.series(clean, mkdir, createR2Examples)
-export default gulp.series(createR2, createR3, createR4)
-// export default gulp.parallel(test)
+export const runCodegen = (cb: Function) => {
+  execute(
+  'cd ./fhir-codegen && \
+    dotnet build && \
+    dotnet src/fhir-codegen-cli/bin/Debug/netcoreapp3.1/fhir-codegen-cli.dll --official-expansions-only true --export-types "primitive|complex|resource" --language TypeScript',
+    cb
+  )
+}
+
+export const prepare = gulp.series(mkdir)
+export const dowloadSpec = gulp.parallel(downloadR2, downloadR3, downloadR4)
+export const createVersions = gulp.series(createR2, createR3, createR4)
