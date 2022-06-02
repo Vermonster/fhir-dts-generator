@@ -1,5 +1,4 @@
 import gulp from  'gulp'
-import del from 'del'
 import fs from 'fs'
 import wget from 'wget-improved'
 import { exec } from 'child_process'
@@ -53,11 +52,17 @@ const execute = (command: string, cb: Function) => {
 const unzip = (out: string, cb: Function) => {
   const outDir = out.replace(/(.*)\.zip$/, '$1')
   console.log(`* Extracting ${out} to ${outDir}...`)
-  execute(`unzip -o ${out} -d ${outDir}`, cb)
+  execute(`unzip -o ${out} -d ${outDir}; mv ${outDir}/site/*.json ${outDir}`, cb)
+}
+
+const untar = (out: string, cb: Function) => {
+  const outDir = out.replace(/(.*)\.tgz$/, '$1')
+  console.log(`* Extracting ${out} to ${outDir}...`)
+  execute(`mkdir -p ${outDir} && tar -zxvf ${out} -C ${outDir} && mv ${outDir}/package/* ${outDir}`, cb)
 }
 
 const doNotSkip = (file: string, specDir: string): boolean => {
-  const version = specDir.slice(-7, -5)
+  const version = specDir.slice(-2)
   return ! (exceptions as any)[version]?.includes(file)
 }
 
@@ -67,7 +72,12 @@ const download = (url: string, dest: string, cb: Function) => {
     .on('error', (err) => console.log(err))
     .on('end', (out) => {
       console.log(`* ${out}`)
-      unzip(dest, cb)
+      if (dest.endsWith('zip')) {
+        unzip(dest, cb)
+      }
+      if (dest.endsWith('tgz')) {
+        untar(dest, cb)
+      }
     })
 }
 
@@ -145,6 +155,7 @@ export const createIndex = (cb: Function) => {
 /// <reference path="r2.d.ts" />
 /// <reference path="r3.d.ts" />
 /// <reference path="r4.d.ts" />
+/// <reference path="r5.d.ts" />
 `
 
   execute(`echo '${header}' > types/fhir/index.d.ts`, () => {
@@ -154,7 +165,7 @@ export const createIndex = (cb: Function) => {
 
 export const createVersion = (version: string, cb: Function) => {
   const specDir = `${__dirname}/spec`
-  buildExamples(`${specDir}/${version}/site`, version, () => {
+  buildExamples(`${specDir}/${version}`, version, () => {
     copyTs(version, cb)
   })
 }
@@ -168,23 +179,35 @@ export const createR3 = (cb: Function) => {
 export const createR4 = (cb: Function) => {
   createVersion('r4', cb)
 }
+export const createR5 = (cb: Function) => {
+  createVersion('r5', cb)
+}
 
+// Examples
 export const downloadR2 = (cb: Function) => {
   const specDir = `${__dirname}/spec`
-  const url = 'https://hl7.org/fhir/DSTU2/fhir-spec.zip'
+  const url = 'http://hl7.org/fhir/DSTU2/examples-json.zip'
   download(url, `${specDir}/r2.zip`, cb)
 }
 
+// NOTE: We need the whole spec here, the examples download for R3 seems broken?
 export const downloadR3 = (cb: Function) => {
   const specDir = `${__dirname}/spec`
-  const url = 'https://hl7.org/fhir/STU3/fhir-spec.zip'
+  //const url = 'http://hl7.org/fhir/STU3/examples-json.zip'
+  const url = 'http://hl7.org/fhir/STU3/fhir-spec.zip'
   download(url, `${specDir}/r3.zip`, cb)
 }
 
 export const downloadR4 = (cb: Function) => {
   const specDir = `${__dirname}/spec`
-  const url = 'https://hl7.org/fhir/R4/fhir-spec.zip'
+  const url = 'http://hl7.org/fhir/examples-json.zip'
   download(url, `${specDir}/r4.zip`, cb)
+}
+
+export const downloadR5 = (cb: Function) => {
+  const specDir = `${__dirname}/spec`
+  const url = 'http://hl7.org/fhir/5.0.0-snapshot1/examples-json.zip'
+  download(url, `${specDir}/r5.zip`, cb)
 }
 
 export const mkdir = (cb: Function) => {
@@ -211,5 +234,5 @@ export const runCodegen = (cb: Function) => {
 }
 
 export const prepare = gulp.series(mkdir)
-export const dowloadSpec = gulp.parallel(downloadR2, downloadR3, downloadR4)
-export const createVersions = gulp.series(createR2, createR3, createR4)
+export const dowloadExamples = gulp.parallel(downloadR2, downloadR3, downloadR4, downloadR5)
+export const createVersions = gulp.series(createR2, createR3, createR4, createR5)

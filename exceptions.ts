@@ -9,6 +9,11 @@ export default {
   'r3': [ ],
   'r4': [
     'examplescenario-questionnaire.canonical.json', // missing linkId
-    'examplescenario-questionnaire.json' // missing linkId
+    'examplescenario-questionnaire.json', // missing linkId
+    'activitydefinition-example.json', // null event
+    'activitydefinition-predecessor-example.json', // null event
+    'activitydefinition-servicerequest-example.json', // null event
+    'plandefinition-example-cardiology-os.json', // null event
+    'plandefinition-example.json' // null event
   ]
 }
