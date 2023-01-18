@@ -1,41 +1,39 @@
-import gulp from  'gulp'
+import gulp from 'gulp'
 import fs from 'fs'
 import wget from 'wget-improved'
 import { exec } from 'child_process'
 import exceptions from './exceptions'
 
 // Utils...
-const removeKeys = (obj: object, keys: string[]) : {} => obj !== Object(obj)
-  ? obj
-  : Array.isArray(obj)
-  ? obj.map((item) => removeKeys(item, keys))
-  : Object.keys(obj)
-  .filter((k) => !keys.includes(k))
-  .reduce(
-    (acc, x) => Object.assign(acc, { [x]: removeKeys((obj as any)[x], keys) }),
-    {}
-  )
+const removeKeys = (obj: object, keys: string[]): {} =>
+  obj !== Object(obj)
+    ? obj
+    : Array.isArray(obj)
+    ? obj.map((item) => removeKeys(item, keys))
+    : Object.keys(obj)
+        .filter((k) => !keys.includes(k))
+        .reduce(
+          (acc, x) =>
+            Object.assign(acc, { [x]: removeKeys((obj as any)[x], keys) }),
+          {}
+        )
 
 const cleanEmpty = function (object: {}) {
   for (let [k, v] of Object.entries(object)) {
-    if (v && typeof v === 'object')
-      cleanEmpty(v)
+    if (v && typeof v === 'object') cleanEmpty(v)
 
-    if (v &&
-      typeof v === 'object' &&
-      !Object.keys(v).length ||
+    if (
+      (v && typeof v === 'object' && !Object.keys(v).length) ||
       v === null ||
       v === undefined
     ) {
       if (k.startsWith('_')) {
-        if (Array.isArray(object))
-          object.splice(Number(k), 1)
-        else if (!(v instanceof Date))
-          delete (object as any)[k]
+        if (Array.isArray(object)) object.splice(Number(k), 1)
+        else if (!(v instanceof Date)) delete (object as any)[k]
       }
     }
-  };
-  return object;
+  }
+  return object
 }
 const execute = (command: string, cb: Function) => {
   exec(command, { maxBuffer: 1024 * 5000 }, (error, _stdout, stderr) => {
@@ -52,23 +50,30 @@ const execute = (command: string, cb: Function) => {
 const unzip = (out: string, cb: Function) => {
   const outDir = out.replace(/(.*)\.zip$/, '$1')
   console.log(`* Extracting ${out} to ${outDir}...`)
-  execute(`unzip -o ${out} -d ${outDir}; mv ${outDir}/site/*.json ${outDir}`, cb)
+  execute(
+    `unzip -o ${out} -d ${outDir}; mv ${outDir}/site/*.json ${outDir}`,
+    cb
+  )
 }
 
 const untar = (out: string, cb: Function) => {
   const outDir = out.replace(/(.*)\.tgz$/, '$1')
   console.log(`* Extracting ${out} to ${outDir}...`)
-  execute(`mkdir -p ${outDir} && tar -zxvf ${out} -C ${outDir} && mv ${outDir}/package/* ${outDir}`, cb)
+  execute(
+    `mkdir -p ${outDir} && tar -zxvf ${out} -C ${outDir} && mv ${outDir}/package/* ${outDir}`,
+    cb
+  )
 }
 
 const doNotSkip = (file: string, specDir: string): boolean => {
   const version = specDir.slice(-2)
-  return ! (exceptions as any)[version]?.includes(file)
+  return !(exceptions as any)[version]?.includes(file)
 }
 
 const download = (url: string, dest: string, cb: Function) => {
   console.log(`* Downloading ${url} to ${dest}...`)
-  wget.download(url, dest)
+  wget
+    .download(url, dest)
     .on('error', (err) => console.log(err))
     .on('end', (out) => {
       console.log(`* ${out}`)
@@ -86,16 +91,16 @@ const buildExamples = (specDir: string, version: string, cb: Function) => {
   fs.readdir(specDir, (err, files) => {
     if (err) {
       console.error(err)
-      throw(err)
+      throw err
     }
     const testFile = [] as string[]
     files?.forEach((file, i) => {
       if (
         file.endsWith('.json') &&
         file.includes('example') &&
-        ! file.includes('diff') &&
+        !file.includes('diff') &&
         doNotSkip(file, specDir)
-        ) {
+      ) {
         try {
           const buf = fs.readFileSync(`${specDir}/${file}`)
           const content = buf.toString()
@@ -103,12 +108,18 @@ const buildExamples = (specDir: string, version: string, cb: Function) => {
           const resource = JSON.parse(content)
           const { resourceType } = resource
           delete resource.text
-          const resourceWoComments = cleanEmpty(removeKeys(resource, [ 'fhir_comments' ]))
+          const resourceWoComments = cleanEmpty(
+            removeKeys(resource, ['fhir_comments'])
+          )
 
           testFile.push('')
           testFile.push(`// ${file}`)
-          testFile.push(`const ${version}Test${i}: fhi${version}.${resourceType} = ${JSON.stringify(resourceWoComments)};`)
-        } catch(e) {
+          testFile.push(
+            `const ${version}Test${i}: fhi${version}.${resourceType} = ${JSON.stringify(
+              resourceWoComments
+            )};`
+          )
+        } catch (e) {
           console.error(`error with ${specDir}/${file}`, e)
         }
       }
@@ -118,7 +129,7 @@ const buildExamples = (specDir: string, version: string, cb: Function) => {
 
     const testFilename = `${__dirname}/types/fhir/test/${version}-tests.ts`
     console.log(`* Writing to ${testFilename}...`)
-    fs.writeFile(testFilename, testFile.join("\n"), (err) => {
+    fs.writeFile(testFilename, testFile.join('\n'), (err) => {
       if (err) throw err
       cb()
     })
@@ -131,8 +142,13 @@ const copyTs = (version: string, cb: Function) => {
 
   const header = `export as namespace fhi${version};`
 
-  console.log(`* Extracting ${src} to ${dest}, adding header, and removing trailing whitespaces...`)
-  execute(`echo '${header}' | cat - ${src} > ${dest} && sed -i 's/[[:space:]]*$//' ${dest}`, cb)
+  console.log(
+    `* Extracting ${src} to ${dest}, adding header, and removing trailing whitespaces...`
+  )
+  execute(
+    `echo '${header}' | cat - ${src} > ${dest} && sed -i 's/[[:space:]]*$//' ${dest}`,
+    cb
+  )
 }
 
 const copyTemplates = (dest: string, cb: Function) => {
@@ -215,7 +231,7 @@ export const mkdir = (cb: Function) => {
     fs.mkdirSync('spec')
   }
   if (!fs.existsSync('types/fhir/test')) {
-    fs.mkdirSync('types/fhir/test', {recursive: true})
+    fs.mkdirSync('types/fhir/test', { recursive: true })
   }
   cb()
 }
@@ -226,7 +242,7 @@ export const test = (cb: Function) => {
 
 export const runCodegen = (cb: Function) => {
   execute(
-  'cd ./fhir-codegen && \
+    'cd ./fhir-codegen && \
     dotnet build && \
     dotnet src/fhir-codegen-cli/bin/Debug/netcoreapp3.1/fhir-codegen-cli.dll --official-expansions-only true --export-types "primitive|complex|resource" --language TypeScript',
     cb
@@ -234,5 +250,15 @@ export const runCodegen = (cb: Function) => {
 }
 
 export const prepare = gulp.series(mkdir)
-export const dowloadExamples = gulp.parallel(downloadR2, downloadR3, downloadR4, downloadR5)
-export const createVersions = gulp.series(createR2, createR3, createR4, createR5)
+export const dowloadExamples = gulp.parallel(
+  downloadR2,
+  downloadR3,
+  downloadR4,
+  downloadR5
+)
+export const createVersions = gulp.series(
+  createR2,
+  createR3,
+  createR4,
+  createR5
+)
