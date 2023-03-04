@@ -35,6 +35,7 @@ const cleanEmpty = function (object: {}) {
   }
   return object
 }
+
 const execute = (command: string, cb: Function) => {
   exec(command, { maxBuffer: 1024 * 5000 }, (error, _stdout, stderr) => {
     if (error) {
@@ -50,10 +51,15 @@ const execute = (command: string, cb: Function) => {
 const unzip = (out: string, cb: Function) => {
   const outDir = out.replace(/(.*)\.zip$/, '$1')
   console.log(`* Extracting ${out} to ${outDir}...`)
-  execute(
-    `unzip -o ${out} -d ${outDir}; mv ${outDir}/site/*.json ${outDir}`,
-    cb
-  )
+
+  let extra = ''
+  if (out.endsWith('4.zip')) {
+    extra = `; mv ${outDir}/examples-json/*.json ${outDir}`
+  } else if (out.endsWith('r3.zip')) {
+    extra = `; mv ${outDir}/site/*.json ${outDir}`
+  }
+
+  execute(`unzip -o ${out} -d ${outDir}${extra}`, cb)
 }
 
 const untar = (out: string, cb: Function) => {
@@ -65,9 +71,33 @@ const untar = (out: string, cb: Function) => {
   )
 }
 
+// True if it is in the skip list
 const doNotSkip = (file: string, specDir: string): boolean => {
-  const version = specDir.slice(-2)
-  return !(exceptions as any)[version]?.includes(file)
+  const version = specDir.replace(/.*\/(r[0-9b]*)$/, '$1')
+  console.log('version', version)
+  const noSkip = !(exceptions as any)[version]?.includes(file)
+  return noSkip
+}
+
+const seenTests: string[] = []
+
+const testExistsForType = (file: string, specDir: string): boolean => {
+  if (doNotSkip(file, specDir)) {
+    const buf = fs.readFileSync(`${specDir}/${file}`)
+    const content = buf.toString()
+
+    const resource = JSON.parse(content)
+    const { resourceType } = resource
+    const key = specDir + resourceType
+
+    console.log('seen', key)
+    if (seenTests.includes(key)) {
+      return true
+    }
+    seenTests.push(key)
+    return false
+  }
+  return false
 }
 
 const download = (url: string, dest: string, cb: Function) => {
@@ -99,7 +129,8 @@ const buildExamples = (specDir: string, version: string, cb: Function) => {
         file.endsWith('.json') &&
         file.includes('example') &&
         !file.includes('diff') &&
-        doNotSkip(file, specDir)
+        doNotSkip(file, specDir) &&
+        !testExistsForType(file, specDir)
       ) {
         try {
           const buf = fs.readFileSync(`${specDir}/${file}`)
@@ -163,7 +194,7 @@ export const createIndex = (cb: Function) => {
 //                 Jan Huenges <https://github.com/jhuenges>
 //                 Brian Kaney <https://github.com/bkaney>
 // Definitions: https://github.com/DefinitelyTyped/DefinitelyTypes
-// Minimum TypeScript Version: 3.7
+// Minimum TypeScript Version: 4.3
 
 // Generated from https://github.com/microsoft/fhir-codegen, packaged
 // with https://github.com/vermonster/fhir-dt-generator.
@@ -171,6 +202,7 @@ export const createIndex = (cb: Function) => {
 /// <reference path="r2.d.ts" />
 /// <reference path="r3.d.ts" />
 /// <reference path="r4.d.ts" />
+/// <reference path="r4b.d.ts" />
 /// <reference path="r5.d.ts" />
 `
 
@@ -195,6 +227,9 @@ export const createR3 = (cb: Function) => {
 export const createR4 = (cb: Function) => {
   createVersion('r4', cb)
 }
+export const createR4b = (cb: Function) => {
+  createVersion('r4b', cb)
+}
 export const createR5 = (cb: Function) => {
   createVersion('r5', cb)
 }
@@ -216,13 +251,19 @@ export const downloadR3 = (cb: Function) => {
 
 export const downloadR4 = (cb: Function) => {
   const specDir = `${__dirname}/spec`
-  const url = 'http://hl7.org/fhir/examples-json.zip'
+  const url = 'http://hl7.org/fhir/R4/examples-json.zip'
   download(url, `${specDir}/r4.zip`, cb)
+}
+
+export const downloadR4b = (cb: Function) => {
+  const specDir = `${__dirname}/spec`
+  const url = 'http://hl7.org/fhir/examples-json.zip'
+  download(url, `${specDir}/r4b.zip`, cb)
 }
 
 export const downloadR5 = (cb: Function) => {
   const specDir = `${__dirname}/spec`
-  const url = 'http://hl7.org/fhir/5.0.0-snapshot1/examples-json.zip'
+  const url = 'http://hl7.org/fhir/5.0.0-ballot/examples-json.zip'
   download(url, `${specDir}/r5.zip`, cb)
 }
 
@@ -244,21 +285,26 @@ export const runCodegen = (cb: Function) => {
   execute(
     'cd ./fhir-codegen && \
     dotnet build && \
-    dotnet src/fhir-codegen-cli/bin/Debug/netcoreapp3.1/fhir-codegen-cli.dll --official-expansions-only true --export-types "primitive|complex|resource" --language TypeScript',
+    dotnet src/fhir-codegen-cli/bin/Debug/net6.0/fhir-codegen-cli.dll --load-r2 latest --load-r3 latest --load-r4 latest --load-r4b 4.3.0 --official-expansions-only true --export-types "primitive|complex|resource" --verbose true --language TypeScript && \
+    dotnet src/fhir-codegen-cli/bin/Debug/net6.0/fhir-codegen-cli.dll --load-r5 latest --experimental true --official-expansions-only true --export-types "primitive|complex|resource" --verbose true --language TypeScript',
     cb
   )
 }
 
 export const prepare = gulp.series(mkdir)
+
 export const dowloadExamples = gulp.parallel(
   downloadR2,
   downloadR3,
   downloadR4,
+  downloadR4b,
   downloadR5
 )
+
 export const createVersions = gulp.series(
   createR2,
   createR3,
   createR4,
+  createR4b,
   createR5
 )
